@@ -1,0 +1,522 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Test Login Module</title>
+    <style>
+        /* Login Module - Odnoklassniki Style */
+.login-module {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    width: 100%;
+    background-color: rgba(255, 255, 255, 0.9);
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 9999;
+    backdrop-filter: blur(5px);
+}
+
+.login-card {
+    width: 400px;
+    background: white;
+    border-radius: 12px;
+    box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
+    padding: 30px;
+    text-align: center;
+    position: relative;
+}
+
+.login-header h2 {
+    color: #FF6B00;
+    font-size: 28px;
+    font-weight: 700;
+    margin-bottom: 25px;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.login-tabs {
+    display: flex;
+    margin-bottom: 25px;
+    border-bottom: 2px solid #e0e0e0;
+}
+
+.tab-btn {
+    flex: 1;
+    padding: 12px 0;
+    background: none;
+    border: none;
+    font-size: 16px;
+    font-weight: 600;
+    color: #666;
+    cursor: pointer;
+    position: relative;
+    transition: all 0.3s ease;
+}
+
+.tab-btn.active {
+    color: #FF6B00;
+}
+
+.tab-btn.active::after {
+    content: '';
+    position: absolute;
+    bottom: -2px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: #FF6B00;
+}
+
+.tab-content {
+    display: none;
+    animation: fadeIn 0.3s ease;
+}
+
+.tab-content.active {
+    display: block;
+}
+
+.input-group {
+    margin-bottom: 20px;
+    text-align: left;
+}
+
+.input-group input {
+    width: 100%;
+    padding: 14px 16px;
+    border: 2px solid #e0e0e0;
+    border-radius: 8px;
+    font-size: 14px;
+    transition: all 0.3s ease;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+.input-group input:focus {
+    outline: none;
+    border-color: #FF6B00;
+    box-shadow: 0 0 0 3px rgba(255, 107, 0, 0.1);
+}
+
+.login-btn {
+    width: 100%;
+    padding: 14px;
+    background: #FF6B00;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    font-weight: 700;
+    cursor: pointer;
+    margin-bottom: 15px;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.login-btn:hover {
+    background: #e65f00;
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(255, 107, 0, 0.3);
+}
+
+.qr-login-btn {
+    width: 100%;
+    padding: 12px;
+    background: transparent;
+    color: #FF6B00;
+    border: 2px solid #FF6B00;
+    border-radius: 8px;
+    font-size: 14px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+}
+
+.qr-login-btn:hover {
+    background: #FF6B00;
+    color: white;
+    transform: translateY(-2px);
+}
+
+.qr-code-container {
+    padding: 30px 0;
+}
+
+.qr-code-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+}
+
+.qr-code {
+    width: 200px;
+    height: 200px;
+    background: url('data:image/svg+xml;base64,PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cGF0aCBmaWxsPSIjRkY2QjAwIiBkPSJNMTAwIDBDNjAgMCAwIDYwIDAgMTAwczYwIDEwMCAxMDAgMTAwIDEwMCAwIDEwMC02MCAxMDAtMTAwIDEwMC0xMDB6Ii8+PHN2ZyB4bWxucz0iaHR0cDovL3d3dy53My5vcmcvMjAwMC9zdmciIHZpZXdCb3g9IjAgMCAyMDAgMjAwIj48cGF0aCBmaWxsPSJ3aGl0ZSIgZD0iTTUwIDEwMEgxMDBWNTBIMUg1MFYxMDBaIi8+PC9zdmc+PC9zdmc+') center/cover;
+    margin-bottom: 20px;
+    border-radius: 8px;
+    box-shadow: 0 4px 15px rgba(0, 0, 0, 0.1);
+}
+
+.qr-code-placeholder p {
+    color: #666;
+    font-size: 14px;
+    font-weight: 500;
+}
+
+.login-links {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    margin-top: 20px;
+    padding-top: 20px;
+    border-top: 1px solid #e0e0e0;
+}
+
+.login-links a {
+    color: #666;
+    font-size: 14px;
+    text-decoration: none;
+    transition: color 0.3s ease;
+}
+
+.login-links a:hover {
+    color: #FF6B00;
+    text-decoration: underline;
+}
+
+.login-footer {
+    margin-top: 30px;
+}
+
+.social-icons {
+    display: flex;
+    justify-content: center;
+    gap: 20px;
+}
+
+.icon {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 700;
+    color: white;
+    font-size: 16px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.ok-icon {
+    background: #FF6B00;
+}
+
+.q-icon {
+    background: #4CAF50;
+}
+
+.s-icon {
+    background: #2196F3;
+}
+
+.icon:hover {
+    transform: scale(1.1);
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+}
+
+.notification {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    padding: 16px 24px;
+    background: linear-gradient(135deg, #4CAF50 0%, #45a049 100%);
+    color: white;
+    border-radius: 10px;
+    box-shadow: 0 8px 25px rgba(76, 175, 80, 0.4);
+    animation: slideInRight 0.3s ease;
+    font-weight: 600;
+    z-index: 2000;
+}
+
+@keyframes slideInRight {
+    from {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+    to {
+        transform: translateX(0);
+        opacity: 1;
+    }
+}
+
+@keyframes slideOutRight {
+    from {
+        transform: translateX(0);
+        opacity: 1;
+    }
+    to {
+        transform: translateX(400px);
+        opacity: 0;
+    }
+}
+
+.notification.removing {
+    animation: slideOutRight 0.3s ease;
+}
+
+@media (max-width: 768px) {
+    .login-card {
+        width: 90%;
+        padding: 25px 20px;
+    }
+
+    .login-header h2 {
+        font-size: 24px;
+    }
+
+    .tab-btn {
+        font-size: 14px;
+        padding: 10px 0;
+    }
+
+    .qr-code {
+        width: 160px;
+        height: 160px;
+    }
+}
+
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+    </style>
+</head>
+<body>
+    <!-- Login Module - Odnoklassniki Style -->
+    <div id="loginModule" class="login-module">
+        <div class="login-card">
+            <div class="login-header">
+                <h2>Вход в ОК</h2>
+            </div>
+
+            <div class="login-tabs">
+                <button class="tab-btn active" data-tab="login">Вход</button>
+                <button class="tab-btn" data-tab="qrcode">QR-код</button>
+            </div>
+
+            <div id="loginTab" class="tab-content active">
+                <form id="loginForm">
+                    <div class="input-group">
+                        <input type="text" id="loginUsername" placeholder="Телефон или адрес эл. почты" required>
+                    </div>
+                    <div class="input-group">
+                        <input type="password" id="loginPassword" placeholder="Пароль" required>
+                    </div>
+                    <button type="submit" class="login-btn">Войти</button>
+                    <button type="button" class="qr-login-btn" onclick="switchToQRTab()">Войти по QR-коду</button>
+                </form>
+            </div>
+
+            <div id="qrcodeTab" class="tab-content">
+                <div class="qr-code-container">
+                    <div class="qr-code-placeholder">
+                        <div class="qr-code"></div>
+                        <p>Отсканируйте в приложении</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="login-links">
+                <a href="#" class="help-link">Не получается войти?</a>
+                <a href="#" class="register-link">Нет профиля в Одноклассниках</a>
+            </div>
+
+            <div class="login-footer">
+                <div class="social-icons">
+                    <div class="icon ok-icon">OK</div>
+                    <div class="icon q-icon">Q</div>
+                    <div class="icon s-icon">S</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Interface -->
+    <div id="mainApp" class="main-app" style="display: none;">
+        <h1>Главное меню: Склад, Мебель, Экспонаты, Инструменты, Аренда</h1>
+        <button onclick="logoutUser()">Выйти</button>
+    </div>
+
+    <!-- Rental Form -->
+    <div class="rental-form">
+        <h2>Добавить Аренду</h2>
+        <form id="rentalForm">
+            <label for="customer">Клиент:</label>
+            <input type="text" id="customer" name="customer" required>
+
+            <label for="items">Выберите предметы:</label>
+            <div id="items">
+                <div class="item">
+                    <select name="item[]" required>
+                        <option value="">Выберите предмет</option>
+                        <option value="chair">Стул</option>
+                        <option value="table">Стол</option>
+                        <option value="projector">Проектор</option>
+                    </select>
+                    <input type="number" name="quantity[]" min="1" placeholder="Количество" required>
+                </div>
+            </div>
+            <button type="button" id="addItem">Добавить предмет</button>
+
+            <label for="startDate">Дата начала:</label>
+            <input type="date" id="startDate" name="startDate" required>
+
+            <label for="endDate">Дата окончания:</label>
+            <input type="date" id="endDate" name="endDate" required>
+
+            <button type="submit">Создать Аренду</button>
+        </form>
+    </div>
+
+    <script>
+        function switchToQRTab() {
+            document.querySelector('.tab-btn[data-tab="login"]').classList.remove('active');
+            document.querySelector('.tab-btn[data-tab="qrcode"]').classList.add('active');
+            document.getElementById('loginTab').classList.remove('active');
+            document.getElementById('qrcodeTab').classList.add('active');
+        }
+
+        function switchToLoginTab() {
+            document.querySelector('.tab-btn[data-tab="qrcode"]').classList.remove('active');
+            document.querySelector('.tab-btn[data-tab="login"]').classList.add('active');
+            document.getElementById('qrcodeTab').classList.remove('active');
+            document.getElementById('loginTab').classList.add('active');
+        }
+
+        function showLoginError(message) {
+            const errorElement = document.createElement('div');
+            errorElement.className = 'login-error';
+            errorElement.textContent = message;
+            errorElement.style.color = '#f44336';
+            errorElement.style.marginTop = '10px';
+            errorElement.style.fontSize = '14px';
+
+            const form = document.getElementById('loginForm');
+            const existingError = form.querySelector('.login-error');
+            if (existingError) {
+                existingError.remove();
+            }
+
+            form.insertBefore(errorElement, form.querySelector('.login-btn'));
+        }
+
+        function clearLoginError() {
+            const form = document.getElementById('loginForm');
+            const existingError = form.querySelector('.login-error');
+            if (existingError) {
+                existingError.remove();
+            }
+        }
+
+        function loginUser() {
+            const username = document.getElementById('loginUsername').value.trim();
+            const password = document.getElementById('loginPassword').value;
+
+            // Mock authentication - admin/admin as per requirements
+            if (username === 'admin' && password === 'admin') {
+                // Successful login
+                document.getElementById('loginModule').style.display = 'none';
+                document.getElementById('mainApp').style.display = 'block';
+                showNotification('🔑 Вход выполнен успешно!', 'success');
+            } else {
+                // Failed login
+                showLoginError('Неверный логин или пароль');
+            }
+        }
+
+        function logoutUser() {
+            document.getElementById('mainApp').style.display = 'none';
+            document.getElementById('loginModule').style.display = 'flex';
+
+            // Reset login form
+            document.getElementById('loginForm').reset();
+            clearLoginError();
+
+            // Reset to login tab
+            switchToLoginTab();
+
+            showNotification('👋 Вы вышли из системы', 'success');
+        }
+
+        function showNotification(message, type = 'success') {
+            const notification = document.createElement('div');
+            notification.className = 'notification';
+            notification.textContent = message;
+
+            if (type === 'error') {
+                notification.style.background = 'linear-gradient(135deg, #f44336 0%, #da190b 100%)';
+            } else if (type === 'warning') {
+                notification.style.background = 'linear-gradient(135deg, #ff9800 0%, #f57c00 100%)';
+            }
+
+            document.body.appendChild(notification);
+
+            setTimeout(() => {
+                notification.classList.add('removing');
+                setTimeout(() => notification.remove(), 300);
+            }, 3000);
+        }
+
+        // Initialize login module
+        document.addEventListener('DOMContentLoaded', function() {
+            // Set up tab switching
+            document.querySelectorAll('.tab-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const tab = this.getAttribute('data-tab');
+
+                    document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                    this.classList.add('active');
+
+                    document.querySelectorAll('.tab-content').forEach(content => content.classList.remove('active'));
+                    document.getElementById(tab + 'Tab').classList.add('active');
+                });
+            });
+
+            // Set up login form submission
+            document.getElementById('loginForm').addEventListener('submit', function(e) {
+                e.preventDefault();
+                clearLoginError();
+                loginUser();
+            });
+
+            // Set up input focus/blur for error clearing
+            document.getElementById('loginUsername').addEventListener('focus', clearLoginError);
+            document.getElementById('loginPassword').addEventListener('focus', clearLoginError);
+        });
+    </script>
+</body>
+</html>
+<task_progress>
+- [x] Analyze current project structure
+- [x] Create login HTML structure
+- [x] Implement CSS styling for Odnoklassniki look
+- [x] Add JavaScript functionality for login/logout
+- [x] Implement tab switching between login and QR code
+- [x] Add mock authentication
+- [x] Test the implementation
+</task_progress>
+</write_to_file>

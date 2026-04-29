@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Справочник Клиентов</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <h1>Справочник Клиентов</h1>
+    <button id="addClient">Добавить клиента</button>
+    <table id="clientsTable">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Тип клиента</th>
+                <th>Название / ФИО</th>
+                <th>ИНН</th>
+                <th>Телефон</th>
+                <th>Email</th>
+                <th>Адрес</th>
+                <th>Договор №</th>
+                <th>Статус</th>
+                <th>Дата регистрации</th>
+                <th>Действия</th>
+            </tr>
+        </thead>
+        <tbody>
+            <!-- Клиенты будут загружены динамически -->
+        </tbody>
+    </table>
+
+    <script>
+        async function fetchClients() {
+            const response = await fetch('/api/clients');
+            const clients = await response.json();
+            const tableBody = document.querySelector('#clientsTable tbody');
+            tableBody.innerHTML = '';
+            clients.forEach(client => {
+                const row = document.createElement('tr');
+                row.innerHTML = `
+                    <td>${client.id}</td>
+                    <td>${client.client_type}</td>
+                    <td>${client.name}</td>
+                    <td>${client.inn || ''}</td>
+                    <td>${client.phone}</td>
+                    <td>${client.email}</td>
+                    <td>${client.address || ''}</td>
+                    <td>${client.contract_number || ''}</td>
+                    <td>${client.status}</td>
+                    <td>${client.registration_date}</td>
+                    <td>
+                        <button onclick="editClient(${client.id})">Редактировать</button>
+                        <button onclick="deleteClient(${client.id})">Удалить</button>
+                    </td>
+                `;
+                tableBody.appendChild(row);
+            });
+        }
+
+        async function deleteClient(id) {
+            if (confirm('Вы уверены, что хотите удалить клиента?')) {
+                const response = await fetch(`/api/clients/${id}`, { method: 'DELETE' });
+                if (response.ok) {
+                    alert('Клиент удален.');
+                    fetchClients();
+                } else {
+                    const error = await response.json();
+                    alert(error.error);
+                }
+            }
+        }
+
+        document.getElementById('addClient').addEventListener('click', () => {
+            // Логика для добавления клиента
+            alert('Форма добавления клиента пока не реализована.');
+        });
+
+        fetchClients();
+    </script>
+</body>
+</html>

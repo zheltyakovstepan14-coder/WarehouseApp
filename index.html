@@ -1,0 +1,1917 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Управление складом</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <!-- Login Module - Odnoklassniki Style -->
+    <div id="loginModule" class="login-module">
+        <canvas id="loginFxCanvas" class="login-fx-canvas" aria-hidden="true"></canvas>
+        <div class="login-fx-overlay" aria-hidden="true"></div>
+        <div class="login-card">
+            <div class="login-header">
+                <h2>Вход в систему</h2>
+                <p id="loginHeroText" class="login-hero-text">Складской учет в одном месте</p>
+            </div>
+
+            <div class="login-form">
+                <form id="loginForm" onsubmit="if (window.handleLoginSubmit) { window.handleLoginSubmit(event); } return false;">
+                    <div class="input-group">
+                        <label for="loginUsername">ЛОГИН</label>
+                        <input type="text" id="loginUsername" placeholder="Введите логин" required>
+                    </div>
+                    <div class="input-group">
+                        <label for="loginPassword">Пароль</label>
+                        <input type="password" id="loginPassword" placeholder="Введите пароль" required>
+                    </div>
+                    <div id="loginAttemptsIndicator" class="login-attempts-indicator">Осталось попыток: 3</div>
+                    <div id="loginCaptchaBlock" class="login-captcha-block" style="display: none;">
+                        <div id="loginCaptchaTitle" class="login-captcha-title">Найдите лишний предмет</div>
+                        <div id="loginCaptchaGrid" class="login-captcha-grid"></div>
+                        <div id="loginCaptchaFeedback" class="login-captcha-feedback" style="display: none;"></div>
+                    </div>
+                    <div id="loginLockMessage" class="login-lock-message" style="display: none;"></div>
+                    <button type="submit" class="login-btn">Войти</button>
+                    <div id="loginError" class="login-error" style="display: none;"></div>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Application Interface -->
+    <div id="mainApp" class="main-app" style="display: none;">
+        <nav>
+            <div class="nav-buttons">
+                <button onclick="showPage('dashboard')" data-page="dashboard">Главное</button>
+                <button onclick="showPage('sklad')" data-page="sklad">Склад</button>
+                <button onclick="showPage('mebel')" data-page="mebel">Мебель</button>
+                <button onclick="showPage('eksponat')" data-page="eksponat">Экспонат</button>
+                <button onclick="showPage('instrument')" data-page="instrument">Инструмент</button>
+                <button onclick="showPage('arenda')" data-page="arenda">Аренда</button>
+                <button onclick="showPage('events')" data-page="events">Мероприятия</button>
+                <button onclick="showPage('purchaseRequests')" data-page="purchaseRequests">Заявки на закупку</button>
+                <div class="docs-menu" data-page="documentsGroup">
+                    <button type="button" class="docs-menu-trigger" onclick="showPage('documentsHub')" data-page="documentsHub">Документы ▼</button>
+                    <div class="docs-submenu">
+                        <button type="button" onclick="showPage('issuanceActs')" data-page="issuanceActs">Акт выдачи</button>
+                        <button type="button" onclick="showPage('transferActs')" data-page="transferActs">Акт передачи</button>
+                        <button type="button" onclick="showPage('acceptanceActs')" data-page="acceptanceActs">Акт приемки</button>
+                        <button type="button" onclick="showPage('writeoffActs')" data-page="writeoffActs">Акт списания</button>
+                        <button type="button" onclick="showPage('purchaseActs')" data-page="purchaseActs">Акт закупки</button>
+                    </div>
+                </div>
+                <button onclick="showPage('history')" data-page="history">История</button>
+                <button onclick="showPage('calendar')" data-page="calendar">Календарь</button>
+                <button onclick="showPage('clients')" data-page="clients">Клиенты</button>
+                <button onclick="showPage('employees')" data-page="employees">Сотрудники</button>
+                <button id="usersTab" onclick="showPage('users')" data-page="users" style="display:none;">Пользователи</button>
+            </div>
+            <div class="nav-controls">
+                <div class="global-search-nav" data-permission="documents.search">
+                    <select id="globalSearchKindFilter" onchange="runGlobalSearch()">
+                        <option value="all">Все</option>
+                        <option value="document">Только документы</option>
+                        <option value="inventory">Только объекты</option>
+                    </select>
+                    <input type="text" id="globalSearchInput" placeholder="Сквозной поиск: документ, объект, клиент..." oninput="runGlobalSearch()">
+                    <div id="globalSearchResults" class="global-search-results" style="display:none;"></div>
+                    <div id="globalSearchRecent" class="global-search-recent" style="display:none;"></div>
+                </div>
+                <div class="auth-controls">
+                    <button type="button" id="notificationsBellBtn" data-permission="documents.view" onclick="toggleNotificationsPanel()">🔔 <span id="notificationsBellCount" class="notif-count">0</span></button>
+                    <button type="button" id="myPermissionsBtn" onclick="openMyPermissionsModal()">Мои права</button>
+                    <button onclick="logoutUser()" id="logoutBtn">Выйти</button>
+                    <span id="authStatus"></span>
+                </div>
+            </div>
+        </nav>
+
+        <div id="dashboard" class="page" style="display:none;">
+            <h1>Главное</h1>
+            <div id="todayFocusBlock" class="dashboard-panel dashboard-today-focus" style="display:none;"></div>
+            <div id="dashboardActionCenter" class="dashboard-panel dashboard-action-center" style="display:none;"></div>
+            <div id="accountingWidgets" class="accounting-widgets-grid">
+                <div class="accounting-widget loading">Загрузка...</div>
+            </div>
+        </div>
+
+        <div id="sklad" class="page">
+            <h1>Склад</h1>
+            <div class="actions inventory-actions">
+                <button id="addInventoryBtn" data-permission="stock.create" onclick="openAddModal('Склад')">Добавить объект</button>
+                <button id="deleteInventoryBtn" data-permission="stock.delete" onclick="deleteSelectedInventory()">Удалить выбранные</button>
+                <button id="inventoryHistoryBtn" onclick="showPage('history')">История движений</button>
+                <button id="inventoryCalendarBtn" onclick="showPage('calendar')">Календарь занятости</button>
+            </div>
+            <div id="inventoryBulkActions" class="bulk-actions-panel">
+                <span id="inventorySelectedCount" class="bulk-selected-count">Выбрано: 0</span>
+                <select id="inventoryBulkStatus">
+                    <option value="">Изменить статус...</option>
+                    <option value="В наличии">В наличии</option>
+                    <option value="На реставрации">На реставрации</option>
+                    <option value="Списано">Списано</option>
+                </select>
+                <button type="button" onclick="applyBulkInventoryStatus()">Применить статус</button>
+                <input type="number" id="inventoryBulkQuantityValue" min="0" step="1" placeholder="Установить количество">
+                <button type="button" onclick="applyBulkInventoryQuantity()">Установить</button>
+                <button type="button" data-permission="reports.export" onclick="exportSelectedInventory('excel')">Экспорт Excel</button>
+                <button type="button" data-permission="reports.export" onclick="exportSelectedInventory('pdf')">Экспорт PDF</button>
+                <select id="inventoryBulkPresetSelect">
+                    <option value="">Шаблон...</option>
+                    <option value="to-writeoff">К списанию (выбранные)</option>
+                    <option value="set-zero">Обнулить количество</option>
+                    <option value="set-restoration">На реставрации</option>
+                </select>
+                <button type="button" onclick="applyInventoryBulkPreset()">Применить шаблон</button>
+                <button type="button" id="inventoryUndoLastActionBtn" style="display:none;" onclick="undoLastInventoryBulkAction()">Отменить последнее действие</button>
+            </div>
+            <div class="search-filters">
+                <input type="text" id="searchInput" placeholder="Поиск по названию..." oninput="searchData()">
+                <select id="categoryFilter" onchange="searchData()">
+                    <option value="">Все категории</option>
+                    <option value="Мебель">Мебель</option>
+                    <option value="Экспонат">Экспонаты</option>
+                    <option value="Инструмент">Инструменты</option>
+                </select>
+                <select id="statusFilter" onchange="searchData()">
+                    <option value="">По остаткам</option>
+                    <option value="available">Достаточно</option>
+                    <option value="low">Ограничено</option>
+                    <option value="out">Отсутствует</option>
+                </select>
+                <select id="inventoryStateFilter" onchange="searchData()">
+                    <option value="">Все статусы</option>
+                    <option value="В наличии">В наличии</option>
+                    <option value="Используется аренда">Используется аренда</option>
+                    <option value="Используется мероприятие">Используется мероприятие</option>
+                    <option value="Используется аренда/мероприятие">Используется аренда/мероприятие</option>
+                    <option value="Нет в наличии">Нет в наличии</option>
+                    <option value="Подготовка к списанию">Подготовка к списанию</option>
+                    <option value="На реставрации">На реставрации</option>
+                    <option value="Списано">Списано</option>
+                </select>
+                <select id="accountingTypeFilter" onchange="searchData()">
+                    <option value="">Все типы учета</option>
+                    <option value="asset">🏗️ Основные средства</option>
+                    <option value="consumable">⚡ Расходные материалы</option>
+                </select>
+            </div>
+            <div class="stock-highlight-legend">
+                <span class="legend-item available">Зеленый: в наличии</span>
+                <span class="legend-item rental">Синий: используется в аренде</span>
+                <span class="legend-item event">Оранжевый: используется на мероприятии</span>
+                <span class="legend-item low">Желтый: мало остатка</span>
+                <span class="legend-item out">Красный: нет в наличии/списание</span>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>#</th>
+                        <th>Название</th>
+                        <th>Категория</th>
+                        <th>Всего</th>
+                        <th>В аренде</th>
+                        <th>На мероприятии</th>
+                        <th>Доступно</th>
+                        <th>Ожидает списания</th>
+                        <th>Тип учета</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableSklad"></tbody>
+            </table>
+            <div class="inventory-status-layout">
+                <div class="report-side-panel">
+                    <h3>Отчёт по статусам</h3>
+                    <div id="inventoryStatusSummary" class="report-summary-list"></div>
+                </div>
+                <div class="report-chart-panel inventory-status-chart-panel">
+                    <div class="inventory-status-chart-toolbar">
+                        <label for="inventoryStatusChartType">Тип диаграммы:</label>
+                        <select id="inventoryStatusChartType">
+                            <option value="doughnut">Кольцевая</option>
+                            <option value="pie">Круговая</option>
+                            <option value="bar">Столбчатая</option>
+                            <option value="line">Линейная</option>
+                        </select>
+                    </div>
+                    <div class="inventory-chart-frame">
+                        <canvas id="inventoryStatusChart" width="400" height="220"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="purchaseRequests" class="page" style="display:none;">
+            <h1>Заявки на закупку</h1>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>Статус</th>
+                        <th>№ заявки</th>
+                        <th>Дата</th>
+                        <th>Позиций</th>
+                        <th>Требуется</th>
+                        <th>Поставлено</th>
+                        <th>Комментарий</th>
+                        <th>Этап</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="purchaseRequestsTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="writeoffActs" class="page" style="display:none;">
+            <h1>Акты списания</h1>
+            <div class="directory-filters writeoff-filters">
+                <input type="date" id="writeoffDateFromFilter">
+                <input type="date" id="writeoffDateToFilter">
+                <select id="writeoffBasisTypeFilter">
+                    <option value="">Все основания</option>
+                    <option value="event">Мероприятие</option>
+                    <option value="rental">Аренда</option>
+                </select>
+                <select id="writeoffReasonCategoryFilter">
+                    <option value="">Все причины</option>
+                    <option value="consumable">Использован</option>
+                    <option value="expiry">Истек срок</option>
+                    <option value="damage">Повреждено</option>
+                    <option value="loss">Утрачено</option>
+                    <option value="other">Другое</option>
+                </select>
+                <select id="writeoffIncidentSourceFilter">
+                    <option value="">Все источники</option>
+                    <option value="Возврат аренды">Возврат аренды</option>
+                    <option value="Возврат мероприятия">Возврат мероприятия</option>
+                </select>
+                <input type="text" id="writeoffObjectFilter" placeholder="Поиск по объекту основания...">
+                <input type="text" id="writeoffReasonFilter" placeholder="Поиск по причине списания...">
+                <button type="button" class="btn-success" onclick="loadWriteoffActs()">Применить</button>
+                <button type="button" class="filter-reset-button" onclick="resetWriteoffActsFilters()">Сбросить</button>
+                <button type="button" class="btn-success" onclick="exportWriteoffActsToExcel()">Экспорт в Excel</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>№ акта</th>
+                        <th>Дата</th>
+                        <th>Позиции</th>
+                        <th>Всего ед.</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="writeoffActsTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="documentsHub" class="page" style="display:none;">
+            <h1>Документы (все)</h1>
+            <p>Все документы всех типов.</p>
+            <div class="directory-filters">
+                <select id="documentsHubTypeFilter">
+                    <option value="">Все типы</option>
+                    <option value="issuance">Акт выдачи</option>
+                    <option value="transfer">Акт передачи</option>
+                    <option value="acceptance">Акт приемки</option>
+                    <option value="writeoff">Акт списания</option>
+                    <option value="purchase_act">Акт закупки</option>
+                </select>
+                <input type="date" id="documentsHubDateFromFilter">
+                <input type="date" id="documentsHubDateToFilter">
+                <input type="text" id="documentsHubSearchFilter" placeholder="Номер или основание...">
+                <button type="button" onclick="loadDocumentsHub()">Применить</button>
+                <button type="button" class="filter-reset-button" onclick="resetDocumentsHubFilters()">Сбросить</button>
+            </div>
+            <div class="table-responsive">
+                <table class="documents-hub-table">
+                    <thead>
+                        <tr>
+                            <th>Тип</th>
+                            <th>№</th>
+                            <th>Дата</th>
+                            <th>Основание</th>
+                            <th>Статус</th>
+                            <th>Действия</th>
+                        </tr>
+                    </thead>
+                    <tbody id="documentsHubTableBody"></tbody>
+                </table>
+            </div>
+            <div class="dashboard-2col" style="margin-top:16px;">
+                <div class="dashboard-panel">
+                    <h3>Итоги по выборке</h3>
+                    <div id="documentsHubSummaryCards" class="calendar-summary-grid"></div>
+                </div>
+                <div class="dashboard-panel">
+                    <h3>Структура по типам</h3>
+                    <div id="documentsHubTypesSummary"></div>
+                </div>
+                <div class="dashboard-panel">
+                    <h3>Структура по статусам</h3>
+                    <div id="documentsHubStatusesSummary"></div>
+                </div>
+            </div>
+        </div>
+
+        <div id="issuanceActs" class="page" style="display:none;">
+            <h1>Акты выдачи</h1>
+            <div class="directory-filters">
+                <input type="date" id="issuanceDateFromFilter">
+                <input type="date" id="issuanceDateToFilter">
+                <input type="text" id="issuanceCounterpartyFilter" placeholder="Контрагент...">
+                <button type="button" onclick="loadIssuanceActs()">Применить</button>
+                <button type="button" class="filter-reset-button" onclick="resetDocumentTypeFilters('issuance')">Сбросить</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>Основание</th>
+                        <th>Контрагент</th>
+                        <th>Сумма</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="issuanceActsTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="transferActs" class="page" style="display:none;">
+            <h1>Акты передачи</h1>
+            <div class="directory-filters">
+                <input type="date" id="transferDateFromFilter">
+                <input type="date" id="transferDateToFilter">
+                <input type="text" id="transferCounterpartyFilter" placeholder="Контрагент...">
+                <button type="button" onclick="loadTransferActs()">Применить</button>
+                <button type="button" class="filter-reset-button" onclick="resetDocumentTypeFilters('transfer')">Сбросить</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>Основание</th>
+                        <th>Контрагент</th>
+                        <th>Сумма</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="transferActsTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="acceptanceActs" class="page" style="display:none;">
+            <h1>Акты приемки</h1>
+            <div class="directory-filters">
+                <input type="date" id="acceptanceDateFromFilter">
+                <input type="date" id="acceptanceDateToFilter">
+                <select id="acceptanceBasisFilter">
+                    <option value="">Все основания</option>
+                    <option value="rental">Аренда</option>
+                    <option value="event">Мероприятие</option>
+                </select>
+                <input type="text" id="acceptanceCounterpartyFilter" placeholder="Контрагент...">
+                <button type="button" onclick="loadAcceptanceActs()">Применить</button>
+                <button type="button" class="filter-reset-button" onclick="resetDocumentTypeFilters('acceptance')">Сбросить</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>Основание</th>
+                        <th>Контрагент</th>
+                        <th>Возвращено</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="acceptanceActsTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="purchaseActs" class="page" style="display:none;">
+            <h1>Акты закупки</h1>
+            <div class="directory-filters">
+                <input type="date" id="purchaseActDateFromFilter">
+                <input type="date" id="purchaseActDateToFilter">
+                <input type="text" id="purchaseActBasisFilter" placeholder="Номер заявки...">
+                <button type="button" onclick="loadPurchaseActs()">Применить</button>
+                <button type="button" class="filter-reset-button" onclick="resetDocumentTypeFilters('purchaseAct')">Сбросить</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th>№</th>
+                        <th>Дата</th>
+                        <th>Основание</th>
+                        <th>Позиций</th>
+                        <th>Единиц</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="purchaseActsTableBody"></tbody>
+            </table>
+        </div>
+
+        <div id="mebel" class="page" style="display:none;">
+            <h1>Мебель</h1>
+            <div class="actions">
+                <button data-permission="stock.create" onclick="openAddModal('Мебель')">Добавить</button>
+                <button data-permission="stock.delete" onclick="deleteSelected('Мебель')">Удалить выбранные</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllMebel" onchange="selectAll('Мебель')"></th>
+                        <th>Название</th>
+                        <th>Категория</th>
+                        <th>Количество</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableMebel"></tbody>
+            </table>
+        </div>
+
+        <div id="eksponat" class="page" style="display:none;">
+            <h1>Экспонаты</h1>
+            <div class="actions">
+                <button data-permission="stock.create" onclick="openAddModal('Экспонат')">Добавить</button>
+                <button data-permission="stock.delete" onclick="deleteSelected('Экспонат')">Удалить выбранные</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllEksponat" onchange="selectAll('Экспонат')"></th>
+                        <th>Название</th>
+                        <th>Категория</th>
+                        <th>Количество</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableEksponat"></tbody>
+            </table>
+        </div>
+
+        <div id="instrument" class="page" style="display:none;">
+            <h1>Инструменты</h1>
+            <div class="actions">
+                <button data-permission="stock.create" onclick="openAddModal('Инструмент')">Добавить</button>
+                <button data-permission="stock.delete" onclick="deleteSelected('Инструмент')">Удалить выбранные</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllInstrument" onchange="selectAll('Инструмент')"></th>
+                        <th>Название</th>
+                        <th>Категория</th>
+                        <th>Количество</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableInstrument"></tbody>
+            </table>
+        </div>
+
+        <div id="arenda" class="page" style="display:none;">
+            <h1>Аренда</h1>
+            <div class="actions">
+                <button id="addRentalBtn" data-permission="rental.create" onclick="openAddRentalModal()">Добавить аренду</button>
+                <button id="deleteRentalBtn" data-permission="rental.delete" onclick="deleteSelectedRentals()">Удалить выбранные</button>
+                <button type="button" data-permission="rental.delete" onclick="deleteAllRentalDrafts()">Удалить все черновики</button>
+                <button type="button" data-permission="rental.changeStatus" onclick="conductSelectedRentals()">Провести все выбранные</button>
+                <button data-permission="rental.documents" onclick="generateDocumentsModal()" class="btn-generate-docs btn-tone-success" style="display: none;">Сформировать документы</button>
+                <button data-permission="reports.view" onclick="openRentalsReportModal()" class="btn-report btn-tone-info">Отчеты</button>
+            </div>
+            <div id="rentalsBulkActions" class="bulk-actions-panel">
+                <span id="rentalsSelectedCount" class="bulk-selected-count">Выбрано: 0</span>
+                <select id="rentalsBulkStatus">
+                    <option value="">Изменить статус...</option>
+                    <option value="Черновик">Черновик</option>
+                    <option value="Проведен">Проведен</option>
+                    <option value="Активна">Активна</option>
+                    <option value="Просрочена">Просрочена</option>
+                    <option value="Завершена">Завершена</option>
+                </select>
+                <button type="button" data-permission="rental.changeStatus" onclick="applyBulkRentalStatus()">Применить статус</button>
+                <button type="button" data-permission="reports.export" onclick="exportSelectedRentals('excel')">Экспорт Excel</button>
+                <button type="button" data-permission="reports.export" onclick="exportSelectedRentals('pdf')">Экспорт PDF</button>
+            </div>
+            <div class="directory-filters">
+                <input type="text" id="rentalSearchFilter" placeholder="Поиск по названию объекта..." oninput="applyRentalsFilters()">
+                <select id="rentalStatusFilter" onchange="applyRentalsFilters()">
+                    <option value="">Все статусы</option>
+                    <option value="Черновик">Черновик</option>
+                    <option value="Проведен">Проведен</option>
+                    <option value="Активна">Активна</option>
+                    <option value="Завершена">Завершена</option>
+                    <option value="Просрочена">Просрочена</option>
+                </select>
+                <input type="datetime-local" id="rentalDateFromFilter" onchange="applyRentalsFilters()">
+                <input type="datetime-local" id="rentalDateToFilter" onchange="applyRentalsFilters()">
+                <select id="rentalClientFilter" onchange="applyRentalsFilters()">
+                    <option value="">Все арендаторы</option>
+                </select>
+                <select id="rentalEmployeeFilter" onchange="applyRentalsFilters()">
+                    <option value="">Все ответственные</option>
+                </select>
+                <button type="button" class="filter-reset-button" onclick="resetRentalsFilters()">Сбросить фильтры</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllRentals" onchange="selectAllRentals()"></th>
+                        <th>Объект</th>
+                        <th>Арендатор</th>
+                        <th>Дата аренды</th>
+                        <th>Дата возврата</th>
+                        <th>Ответственный</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableRentals"></tbody>
+            </table>
+        </div>
+
+        <div id="events" class="page" style="display:none;">
+            <h1>Мероприятия</h1>
+            <div class="actions">
+                <button id="addEventBtn" data-permission="events.create" onclick="openAddEventModal()">Добавить мероприятие</button>
+                <button id="deleteEventBtn" data-permission="events.delete" onclick="deleteSelectedEvents()">Удалить выбранные</button>
+                <button type="button" data-permission="events.delete" onclick="deleteAllEventDrafts()">Удалить все черновики</button>
+                <button type="button" data-permission="events.changeStatus" onclick="conductSelectedEvents()">Провести все выбранные</button>
+                <button data-permission="events.documents" onclick="generateEventDocumentsModal()" class="btn-generate-docs btn-tone-success" style="display: none;">Сформировать документы</button>
+                <button data-permission="reports.view" onclick="openEventsReportModal()" class="btn-report btn-tone-info">Отчеты</button>
+            </div>
+            <div id="eventsBulkActions" class="bulk-actions-panel">
+                <span id="eventsSelectedCount" class="bulk-selected-count">Выбрано: 0</span>
+                <select id="eventsBulkStatus">
+                    <option value="">Изменить статус...</option>
+                    <option value="Черновик">Черновик</option>
+                    <option value="Проведен">Проведен</option>
+                    <option value="Активно">Активно</option>
+                    <option value="Просрочена">Просрочена</option>
+                    <option value="Завершено">Завершено</option>
+                </select>
+                <button type="button" data-permission="events.changeStatus" onclick="applyBulkEventStatus()">Применить статус</button>
+                <button type="button" data-permission="reports.export" onclick="exportSelectedEvents('excel')">Экспорт Excel</button>
+                <button type="button" data-permission="reports.export" onclick="exportSelectedEvents('pdf')">Экспорт PDF</button>
+            </div>
+            <div class="directory-filters">
+                <input type="text" id="eventSearchFilter" placeholder="Поиск по названию мероприятия..." oninput="applyEventsFilters()">
+                <select id="eventStatusFilter" onchange="applyEventsFilters()">
+                    <option value="">Все статусы</option>
+                    <option value="Черновик">Черновик</option>
+                    <option value="Проведен">Проведен</option>
+                    <option value="Активно">Активно</option>
+                    <option value="Завершено">Завершено</option>
+                    <option value="Просрочена">Просрочена</option>
+                </select>
+                <input type="datetime-local" id="eventDateFromFilter" onchange="applyEventsFilters()">
+                <input type="datetime-local" id="eventDateToFilter" onchange="applyEventsFilters()">
+                <input type="text" id="eventLocationFilter" placeholder="Место проведения..." oninput="applyEventsFilters()">
+                <select id="eventEmployeeFilter" onchange="applyEventsFilters()">
+                    <option value="">Все ответственные</option>
+                </select>
+                <button type="button" class="filter-reset-button" onclick="resetEventsFilters()">Сбросить фильтры</button>
+            </div>
+            <table border="1">
+                <thead>
+                    <tr>
+                        <th><input type="checkbox" id="selectAllEvents" onchange="selectAllEvents()"></th>
+                        <th>Название</th>
+                        <th>Дата начала</th>
+                        <th>Дата окончания</th>
+                        <th>Место</th>
+                        <th>Ответственный</th>
+                        <th>Статус</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableEvents"></tbody>
+            </table>
+        </div>
+
+        <div id="history" class="page" style="display:none;">
+            <h1>История перемещений</h1>
+            <div class="directory-filters">
+                <select id="historyObjectFilter" onchange="loadMovementHistory()">
+                    <option value="">Все объекты</option>
+                </select>
+                <select id="historyOperationFilter" onchange="loadMovementHistory()">
+                    <option value="">Все операции</option>
+                    <option value="Выдача">Выдача</option>
+                    <option value="Возврат">Возврат</option>
+                    <option value="Изменение статуса">Изменение статуса</option>
+                    <option value="Удаление">Удаление</option>
+                </select>
+                <input type="datetime-local" id="historyDateFromFilter" onchange="loadMovementHistory()">
+                <input type="datetime-local" id="historyDateToFilter" onchange="loadMovementHistory()">
+                <input type="text" id="historyResponsibleFilter" placeholder="Ответственный..." oninput="loadMovementHistory()">
+                <input type="text" id="historySearchInput" placeholder="Поиск по объекту или документу..." oninput="loadMovementHistory()">
+            </div>
+            <div class="report-actions-row">
+                <button type="button" onclick="loadMovementHistory(true)">Обновить</button>
+                <button type="button" data-permission="reports.export" onclick="exportMovementHistory('excel')">Экспорт в Excel</button>
+                <button type="button" data-permission="reports.export" onclick="exportMovementHistory('pdf')">Экспорт в PDF</button>
+            </div>
+            <div class="report-table-wrapper">
+                <table id="historyTable" class="report-table">
+                    <thead>
+                        <tr>
+                            <th>Дата</th>
+                            <th>Объект</th>
+                            <th>Категория</th>
+                            <th>Операция</th>
+                            <th>Количество</th>
+                            <th>Кто</th>
+                            <th>Куда/Откуда</th>
+                            <th>Документ</th>
+                        </tr>
+                    </thead>
+                    <tbody id="historyTableBody"></tbody>
+                </table>
+            </div>
+            <div id="historyDetailsPanel" class="history-details-panel" style="display:none;"></div>
+        </div>
+
+        <div id="calendar" class="page" style="display:none;">
+            <h1>Календарь занятости объектов</h1>
+            <div class="directory-filters">
+                <select id="calendarViewMode" onchange="loadOccupancyCalendar()">
+                    <option value="month">Месяц</option>
+                    <option value="week">Неделя</option>
+                    <option value="day">День</option>
+                </select>
+                <input type="date" id="calendarReferenceDate" onchange="loadOccupancyCalendar()">
+                <select id="calendarItemFilter" onchange="loadOccupancyCalendar()">
+                    <option value="">Все объекты</option>
+                </select>
+                <select id="calendarTypeFilter" onchange="loadOccupancyCalendar()">
+                    <option value="all">Все типы</option>
+                    <option value="rental">Аренда</option>
+                    <option value="event">Мероприятия</option>
+                </select>
+                <select id="calendarEmployeeFilter" onchange="loadOccupancyCalendar()">
+                    <option value="">Все ответственные</option>
+                </select>
+                <button type="button" class="filter-reset-button" onclick="resetCalendarFilters()">Сбросить</button>
+            </div>
+            <div class="calendar-legend">
+                <span class="legend-chip rental">Синим — аренды</span>
+                <span class="legend-chip event">Зелёным — мероприятия</span>
+                <span class="legend-chip draft">Серым пунктиром — черновики (не блокируют)</span>
+                <span class="legend-chip conflict">Красная рамка — конфликт</span>
+            </div>
+            <div id="calendarSummary" class="calendar-summary-grid"></div>
+            <div id="calendarGrid" class="occupancy-calendar-grid"></div>
+        </div>
+
+        <div id="clients" class="page" style="display:none;">
+            <h1>Справочник Клиентов</h1>
+            <div class="directory-toolbar">
+                <button id="addClient">Добавить клиента</button>
+                <input type="text" id="clientSearch" placeholder="Поиск клиентов..." oninput="searchClients()">
+            </div>
+            <table id="clientsTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Название / ФИО</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Адрес</th>
+                        <th>ИНН</th>
+                        <th>Тип</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Клиенты будут загружены динамически -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="employees" class="page" style="display:none;">
+            <h1>Справочник Сотрудников</h1>
+            <div class="directory-toolbar">
+                <button id="addEmployee">Добавить сотрудника</button>
+                <input type="text" id="employeeSearch" placeholder="Поиск сотрудников..." oninput="searchEmployees()">
+            </div>
+            <table id="employeesTable">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>ФИО</th>
+                        <th>Должность</th>
+                        <th>Телефон</th>
+                        <th>Email</th>
+                        <th>Дата приема</th>
+                        <th>Активен</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- Сотрудники будут загружены динамически -->
+                </tbody>
+            </table>
+        </div>
+
+        <div id="users" class="page" style="display:none;">
+            <h1>Управление пользователями</h1>
+            <p class="users-page-note">Только администратор может создавать сотрудников.</p>
+            <div class="directory-toolbar users-toolbar">
+                <button id="addUserBtn" data-permission="users.create" onclick="openAddUserModal()">Создать пользователя</button>
+                <input type="text" id="usersSearch" placeholder="Поиск пользователя по имени, роли или ID" oninput="searchUsers()">
+            </div>
+            <h2>Список пользователей</h2>
+            <table class="users-table">
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Имя пользователя</th>
+                        <th>Роль</th>
+                        <th>Активен</th>
+                        <th>Последний вход</th>
+                        <th>Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="tableUsers"></tbody>
+            </table>
+        </div>
+
+        <!-- Модальное окно для добавления/редактирования -->
+        <div id="modal" class="modal" style="display:none;">
+            <div class="modal-content item-editor-modal">
+                <span class="close" onclick="closeModal()">&times;</span>
+                <h2 id="modalTitle">Добавить объект</h2>
+                <div id="itemFormProgress" class="entity-progress-line"></div>
+                <form id="itemForm" class="item-editor-form">
+                    <label for="itemName">Название:</label>
+                    <input type="text" id="itemName" required>
+
+                    <label for="itemCategoryDisplay">Категория:</label>
+                    <input type="text" id="itemCategoryDisplay" readonly>
+
+                    <fieldset class="accounting-rules-block">
+                        <legend>Правила учета</legend>
+                        <div class="accounting-type-group">
+                            <span class="field-title">Тип учета:</span>
+                            <label class="radio-row" for="itemAccountingTypeAsset">
+                                <input type="radio" name="itemAccountingType" id="itemAccountingTypeAsset" value="asset" checked onchange="toggleAccountingTypeFields()">
+                                <span>🏗️ Основное средство (возвращается на склад)</span>
+                            </label>
+                            <label class="radio-row" for="itemAccountingTypeConsumable">
+                                <input type="radio" name="itemAccountingType" id="itemAccountingTypeConsumable" value="consumable" onchange="toggleAccountingTypeFields()">
+                                <span>⚡ Расходный материал (списывается после мероприятия/аренды)</span>
+                            </label>
+                        </div>
+
+                        <div id="consumableAccountingFields" class="status-extra-fields" style="display:none;">
+                            <label for="itemMinStock">Минимальная норма:</label>
+                            <input type="number" id="itemMinStock" min="0" placeholder="Например, 10">
+                            <label class="checkbox-row" for="itemRequiresPurchase">
+                                <input type="checkbox" id="itemRequiresPurchase">
+                                <span>Требует закупки при отсутствии</span>
+                            </label>
+                        </div>
+
+                        <div id="assetAccountingFields" class="status-extra-fields">
+                            <label for="itemLifespan">Срок эксплуатации (в месяцах):</label>
+                            <div class="lifespan-input-row">
+                                <select id="itemLifespanPreset" onchange="applyLifespanPreset(this.value)">
+                                    <option value="">Выберите срок</option>
+                                    <option value="12">12</option>
+                                    <option value="24">24</option>
+                                    <option value="36">36</option>
+                                    <option value="48">48</option>
+                                    <option value="60">60</option>
+                                    <option value="custom">Ввести вручную</option>
+                                </select>
+                                <input type="number" id="itemLifespan" min="1" placeholder="Например, 36" oninput="updateAssetEndDatePreview()">
+                            </div>
+                            <label for="itemBalanceDate">Дата постановки на баланс:</label>
+                            <input type="date" id="itemBalanceDate" onchange="updateAssetEndDatePreview()">
+                            <label for="itemAssetEndDate">Дата окончания срока эксплуатации:</label>
+                            <input type="date" id="itemAssetEndDate" readonly>
+                        </div>
+                    </fieldset>
+
+                    <label for="itemStatus">Статус:</label>
+                    <select id="itemStatus" onchange="toggleInventoryStatusFields()">
+                        <option value="В наличии">В наличии</option>
+                        <option value="Нет в наличии">Нет в наличии</option>
+                        <option value="Нет в наличии (в использовании)">Нет в наличии (в использовании)</option>
+                        <option value="На реставрации">На реставрации</option>
+                        <option value="Списано">Списано</option>
+                    </select>
+
+                    <div id="itemRepairFields" class="status-extra-fields" style="display:none;">
+                        <label for="itemStatusReason">Причина реставрации/ремонта:</label>
+                        <textarea id="itemStatusReason" rows="2" placeholder="Укажите причину и комментарий"></textarea>
+                        <label for="itemPlannedReturnDate">Планируемая дата возврата:</label>
+                        <input type="datetime-local" id="itemPlannedReturnDate">
+                    </div>
+
+                    <div id="itemWriteoffFields" class="status-extra-fields" style="display:none;">
+                        <label for="itemWriteoffReason">Причина списания:</label>
+                        <textarea id="itemWriteoffReason" rows="2" placeholder="Укажите причину списания"></textarea>
+                        <label for="itemWriteoffDate">Дата списания:</label>
+                        <input type="datetime-local" id="itemWriteoffDate">
+                    </div>
+
+                    <div class="item-inline-row">
+                        <div>
+                            <label for="itemStock">Количество:</label>
+                            <input type="number" id="itemStock" min="0" required>
+                        </div>
+                        <div>
+                            <label for="itemUnitCost">Стоимость за единицу (₽):</label>
+                            <input type="number" id="itemUnitCost" min="0" step="0.01" placeholder="Например, 1500">
+                        </div>
+                    </div>
+
+                    <label for="itemDescription">Описание:</label>
+                    <textarea id="itemDescription" rows="3"></textarea>
+
+                    <details class="item-advanced-section">
+                        <summary>Дополнительные поля</summary>
+                        <label for="itemInfo">Дополнительная информация:</label>
+                        <textarea id="itemInfo" rows="2"></textarea>
+
+                        <label for="itemImageUrl">URL изображения:</label>
+                        <input type="url" id="itemImageUrl" placeholder="https://example.com/image.jpg">
+
+                        <label for="itemImageFile">Загрузите изображение:</label>
+                        <input type="file" id="itemImageFile" accept=".png,.jpg,.jpeg,.gif,.webp,.bmp,image/*">
+                    </details>
+
+                    <button type="submit">Сохранить</button>
+                    <button type="button" onclick="deleteItem()" id="deleteBtn">Удалить</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Модальное окно для детальной карточки объекта -->
+        <div id="itemCard" class="modal" style="display:none;">
+            <div class="item-card-content">
+                <span class="close" onclick="closeItemCard()">&times;</span>
+                <div class="item-card-header">
+                    <img id="itemImage" src="" alt="Фото объекта" class="item-image">
+                    <div class="item-info">
+                        <h2 id="itemCardTitle"></h2>
+                        <div class="item-meta-grid">
+                            <p><strong>Категория:</strong> <span id="itemCardCategory"></span></p>
+                            <p><strong>Тип учета:</strong> <span id="itemCardAccountingType"></span></p>
+                            <p><strong>Статус:</strong> <span id="itemCardStatus"></span></p>
+                            <p><strong>Всего:</strong> <span id="itemCardTotalQty">0</span></p>
+                            <p><strong>В аренде:</strong> <span id="itemCardInRental">0</span></p>
+                            <p><strong>На мероприятии:</strong> <span id="itemCardInEvent">0</span></p>
+                            <p><strong>Доступно:</strong> <span id="itemCardAvailable">0</span></p>
+                            <p><strong>Стоимость за единицу:</strong> <span id="itemCardUnitCost">—</span></p>
+                        </div>
+                    </div>
+                </div>
+                <div class="item-description">
+                    <h3>Описание:</h3>
+                    <p id="itemCardDescription"></p>
+                    <p id="itemCardInfo"></p>
+                </div>
+                <div id="itemCardAssetDetails" class="item-asset-details" style="display:none;">
+                    <h3>Основное средство</h3>
+                    <p><strong>Дата постановки на баланс:</strong> <span id="itemCardBalanceDate">—</span></p>
+                    <p><strong>Срок эксплуатации:</strong> <span id="itemCardLifespan">—</span></p>
+                    <p><strong>Дата окончания срока:</strong> <span id="itemCardEndDate">—</span></p>
+                    <button type="button" onclick="event.stopPropagation(); openExtendLifespanModal()">Продлить срок</button>
+                </div>
+                <div id="itemCardAssetHistory" class="item-asset-history" style="display:none;">
+                    <h3>История ОС</h3>
+                    <div id="itemCardAssetHistoryContent" class="item-asset-history-content">Загрузка...</div>
+                </div>
+                <div id="itemCardWriteoffInfo" class="item-asset-details" style="display:none;">
+                    <h3>Данные списания</h3>
+                    <p><strong>Причина:</strong> <span id="itemCardWriteoffReason">—</span></p>
+                    <p><strong>Дата списания:</strong> <span id="itemCardWriteoffDate">—</span></p>
+                    <p><strong>Акт списания:</strong> <span id="itemCardWriteoffAct">—</span></p>
+                </div>
+                <div id="itemCardConsumableDetails" class="item-asset-details" style="display:none;">
+                    <h3>Расходный материал</h3>
+                    <p><strong>Минимальная норма:</strong> <span id="itemCardMinStock">—</span></p>
+                    <p><strong>Автозакупка:</strong> <span id="itemCardRequiresPurchase">—</span></p>
+                </div>
+                <div class="item-actions">
+                    <button class="item-action-btn item-action-edit" onclick="event.stopPropagation(); openEditModalFromCard()">Редактировать</button>
+                    <button class="item-action-btn item-action-delete" onclick="event.stopPropagation(); deleteItemFromCard()">Удалить</button>
+                    <button id="itemCardSplitDefectBtn" class="item-action-btn" style="display:none;" onclick="event.stopPropagation(); openSplitDefectFromCurrentCard()">Списать</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="extendLifespanModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeExtendLifespanModal()">&times;</span>
+                <h2>Продление срока эксплуатации</h2>
+                <label for="extendMonths">Дополнительный срок (месяцы):</label>
+                <select id="extendMonths">
+                    <option value="12">12</option>
+                    <option value="24">24</option>
+                    <option value="36">36</option>
+                </select>
+                <label for="extendReason">Причина продления:</label>
+                <textarea id="extendReason" rows="3" placeholder="Например: плановый капремонт, модернизация"></textarea>
+                <button type="button" onclick="submitExtendLifespan()">Продлить</button>
+            </div>
+        </div>
+
+        <div id="splitDefectModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeSplitDefectModal()">&times;</span>
+                <h2>Списать дефектные</h2>
+                <p id="splitDefectItemLabel">Объект не выбран</p>
+                <label for="splitDefectQuantity">Количество дефектных:</label>
+                <input type="number" id="splitDefectQuantity" min="1" step="1" value="1">
+                <label for="splitDefectReason">Причина:</label>
+                <select id="splitDefectReason">
+                    <option value="Брак">Брак</option>
+                    <option value="Поломка">Поломка</option>
+                    <option value="Повреждение">Повреждение</option>
+                    <option value="Износ">Износ</option>
+                    <option value="Утрачено">Утрачено</option>
+                    <option value="Списание по решению руководства">Списание по решению руководства</option>
+                </select>
+                <label for="splitDefectComment">Комментарий:</label>
+                <textarea id="splitDefectComment" rows="3" placeholder="Опишите характер дефекта"></textarea>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;margin-top:12px;">
+                    <button type="button" class="confirm-no" onclick="closeSplitDefectModal()">Отмена</button>
+                    <button type="button" class="btn-accent" onclick="submitSplitDefect()">Отправить в списание</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="addUserModal" class="modal" style="display:none;">
+            <div class="modal-content form-modal-wide">
+                <span class="close" onclick="closeAddUserModal()">&times;</span>
+                <h2>Создать пользователя</h2>
+                <form id="userForm">
+                    <div class="users-form-field">
+                        <label for="newUsername">Имя пользователя:</label>
+                        <input type="text" id="newUsername" required>
+                    </div>
+                    <div class="users-form-field">
+                        <label for="newPassword">Пароль:</label>
+                        <input type="password" id="newPassword" required>
+                    </div>
+                    <div class="users-form-field">
+                        <label for="newRole">Роль:</label>
+                        <select id="newRole" required>
+                            <option value="Кладовщик">Кладовщик</option>
+                            <option value="Менеджер">Менеджер</option>
+                            <option value="Руководитель">Руководитель</option>
+                            <option value="Гость">Гость / Наблюдатель</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+                    </div>
+                    <div class="users-form-field users-form-checkbox-field">
+                        <label for="newUserActive">Активен:</label>
+                        <label class="checkbox-row" for="newUserActive">
+                            <input type="checkbox" id="newUserActive" checked>
+                            <span>Да</span>
+                        </label>
+                    </div>
+                    <div class="users-form-submit">
+                        <button type="submit">Создать пользователя</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div id="userEditModal" class="modal" style="display:none;">
+            <div class="modal-content form-modal-wide user-edit-modal-content">
+                <span class="close" onclick="closeUserEditModal()">&times;</span>
+                <h2 id="userEditModalTitle">Редактировать пользователя</h2>
+                <div class="user-edit-tabs">
+                    <button type="button" class="user-edit-tab active" data-user-edit-tab="profile" onclick="switchUserEditTab('profile')">Профиль</button>
+                    <button type="button" class="user-edit-tab" data-permission="users.permissions" data-user-edit-tab="permissions" onclick="switchUserEditTab('permissions')">Права доступа</button>
+                    <button type="button" class="user-edit-tab" data-user-edit-tab="mine" onclick="switchUserEditTab('mine')">Мои права</button>
+                </div>
+                <form id="userEditForm">
+                    <div class="user-edit-panel" data-user-edit-panel="profile">
+                        <label for="editUsername">Имя пользователя:</label>
+                        <input type="text" id="editUsername" required>
+
+                        <label for="editUserRole">Роль:</label>
+                        <select id="editUserRole" required>
+                            <option value="Кладовщик">Кладовщик</option>
+                            <option value="Менеджер">Менеджер</option>
+                            <option value="Руководитель">Руководитель</option>
+                            <option value="Гость">Гость / Наблюдатель</option>
+                            <option value="admin">Администратор</option>
+                        </select>
+
+                        <label for="editUserPassword">Новый пароль:</label>
+                        <input type="password" id="editUserPassword" placeholder="Оставьте пустым, чтобы не менять">
+
+                        <label for="editUserPasswordConfirm">Подтверждение пароля:</label>
+                        <input type="password" id="editUserPasswordConfirm" placeholder="Повторите пароль">
+
+                        <label class="checkbox-row" for="editUserActive">
+                            <input type="checkbox" id="editUserActive">
+                            <span>Пользователь активен</span>
+                        </label>
+
+                        <label for="editUserLastLogin">Дата последнего входа:</label>
+                        <input type="text" id="editUserLastLogin" readonly>
+                    </div>
+
+                    <div class="user-edit-panel" data-user-edit-panel="permissions" style="display:none;">
+                        <div class="permissions-note">Администратор может изменить стандартные права роли для конкретного пользователя.</div>
+                        <div id="userPermissionsEditor" class="permissions-editor"></div>
+                    </div>
+
+                    <div class="user-edit-panel" data-user-edit-panel="mine" style="display:none;">
+                        <div id="myPermissionsContent" class="permissions-summary"></div>
+                    </div>
+
+                    <div class="form-actions">
+                        <button type="submit">Сохранить</button>
+                        <button type="button" data-permission="users.permissions" onclick="resetEditedUserPermissions()">Сбросить права</button>
+                        <button type="button" onclick="resetSelectedUserPassword()">Сбросить пароль</button>
+                        <button type="button" data-permission="users.delete" onclick="deleteSelectedUser()">Удалить</button>
+                        <button type="button" onclick="closeUserEditModal()">Отмена</button>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Модальное окно для подтверждения удаления -->
+        <div id="confirmModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeConfirmModal()">&times;</span>
+                <h2 id="confirmModalTitle">Подтверждение действия</h2>
+                <p id="confirmModalMessage">Вы уверены, что хотите выполнить это действие?</p>
+                <div id="confirmModalDetails" class="confirm-details" style="display:none;"></div>
+                <label id="confirmModalOptionRow" class="confirm-option-row" style="display:none;">
+                    <input type="checkbox" id="confirmModalOptionCheckbox" checked>
+                    <span id="confirmModalOptionLabel">Дополнительная опция</span>
+                </label>
+                <div class="confirm-buttons">
+                    <button type="button" onclick="confirmAction()" class="confirm-yes" id="confirmActionButton">Подтвердить</button>
+                    <button type="button" onclick="closeConfirmModal()" class="confirm-no" id="confirmCancelButton">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="assetUnavailableModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" id="assetUnavailableCloseBtn">&times;</span>
+                <h2 id="assetUnavailableTitle">Объект временно недоступен</h2>
+                <p><strong>Причина:</strong> <span id="assetUnavailableReason">—</span></p>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-start;flex-wrap:wrap;">
+                    <button type="button" id="assetUnavailableExternalBtn">Заказать у другой организации</button>
+                    <button type="button" id="assetUnavailablePurchaseBtn">Оформить заявку на закупку</button>
+                    <button type="button" class="confirm-no" id="assetUnavailableRemoveBtn">Удалить из списка</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="stockDeficitModal" class="modal" style="display:none;">
+            <div class="modal-content form-modal-wide stock-deficit-modal-content">
+                <span class="close" id="stockDeficitCloseBtn">&times;</span>
+                <h2 id="stockDeficitTitle">Недостаточно товара на складе</h2>
+                <div class="stock-deficit-summary">
+                    <div><strong>Объект:</strong> <span id="stockDeficitItemName">—</span></div>
+                    <div><strong>Категория:</strong> <span id="stockDeficitCategory">—</span></div>
+                    <div><strong>Тип учета:</strong> <span id="stockDeficitType">—</span></div>
+                    <div><strong>Доступно на складе:</strong> <span id="stockDeficitAvailable">0 шт.</span></div>
+                    <div><strong>Требуется:</strong> <span id="stockDeficitRequired">0 шт.</span></div>
+                    <div><strong>Не хватает:</strong> <span id="stockDeficitShortage">0 шт.</span></div>
+                </div>
+                <div id="stockDeficitReason" class="stock-deficit-reason">—</div>
+                <div class="stock-deficit-options">
+                    <label class="stock-deficit-option" id="stockDeficitPurchaseOption">
+                        <input type="radio" name="stockDeficitAction" value="purchase" checked>
+                        <span>
+                            <strong>🛒 Оформить заявку на закупку</strong>
+                            <small id="stockDeficitPurchaseText">Купить недостающие позиции</small>
+                        </span>
+                    </label>
+                    <label class="stock-deficit-option" id="stockDeficitExternalOption">
+                        <input type="radio" name="stockDeficitAction" value="external">
+                        <span>
+                            <strong>📦 Арендовать у другой организации</strong>
+                            <small>Объект будет отмечен как арендованный и не повлияет на склад</small>
+                        </span>
+                    </label>
+                    <label class="stock-deficit-option" id="stockDeficitReduceOption">
+                        <input type="radio" name="stockDeficitAction" value="reduce">
+                        <span>
+                            <strong>✂️ Уменьшить количество</strong>
+                            <small id="stockDeficitReduceText">Изменить количество на доступный остаток</small>
+                        </span>
+                    </label>
+                    <label class="stock-deficit-option" id="stockDeficitRemoveOption">
+                        <input type="radio" name="stockDeficitAction" value="remove">
+                        <span>
+                            <strong>❌ Удалить объект из заявки</strong>
+                            <small>Позиция будет полностью исключена из текущего документа</small>
+                        </span>
+                    </label>
+                </div>
+                <div class="form-actions">
+                    <button type="button" id="stockDeficitApplyBtn">Применить</button>
+                    <button type="button" class="confirm-no" id="stockDeficitCancelBtn">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="purchaseRequestChoiceModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closePurchaseRequestChoiceModal()">&times;</span>
+                <h2>Сформировать заявку на закупку</h2>
+                <div id="purchaseRequestChoiceModalContent"></div>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+                    <button type="button" id="purchaseRequestChoiceCreateNewBtn" onclick="purchaseRequestChoiceCreateNew()">Создать новую заявку</button>
+                    <button type="button" id="purchaseRequestChoiceUseDraftBtn" onclick="purchaseRequestChoiceUseDraft()" style="display:none;">Сформировать текущую заявку (черновик)</button>
+                    <button type="button" class="confirm-no" onclick="closePurchaseRequestChoiceModal()">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для добавления/редактирования аренды -->
+        <div id="rentalModal" class="modal" style="display:none;">
+            <div class="modal-content form-modal-wide">
+                <span class="close" onclick="closeRentalModal()">&times;</span>
+                <h2 id="rentalModalTitle">Добавить аренду</h2>
+                <form id="rentalForm" class="entity-form">
+                    <div id="rentalFormLoading" class="form-loading-state" style="display:none;">Загрузка данных аренды...</div>
+                    <div class="form-grid-2">
+                        <div>
+                            <label for="rentalClient">Клиент:</label>
+                            <select id="rentalClient" required>
+                                <option value="">Выберите клиента</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="rentalEmployee">Ответственный:</label>
+                            <select id="rentalEmployee" required>
+                                <option value="">Выберите сотрудника</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div>
+                            <label for="rentalStartDate">Дата и время начала:</label>
+                            <input type="datetime-local" id="rentalStartDate" step="60" required>
+                        </div>
+                        <div>
+                            <label for="rentalEndDate">Дата и время окончания:</label>
+                            <input type="datetime-local" id="rentalEndDate" step="60" required>
+                        </div>
+                    </div>
+
+                    <div class="status-row">
+                        <div>
+                            <label for="rentalStatus">Статус аренды:</label>
+                            <select id="rentalStatus" onchange="toggleRentalConditionFields()">
+                                <option value="Черновик">Черновик</option>
+                                <option value="Проведен">Проведен</option>
+                                <option value="Активна">Активна</option>
+                                <option value="Завершена">Завершена</option>
+                                <option value="Просрочена">Просрочена</option>
+                            </select>
+                        </div>
+                        <div id="rentalConditionHint" class="status-hint">
+                            Состояние ОС заполняется в акте приемки при завершении аренды. Расходники списываются автоматически при выдаче.
+                        </div>
+                    </div>
+                    <div id="rentalProgressLine" class="entity-progress-line"></div>
+
+                    <div id="rentalStatusInfoBlock" class="record-status-info" style="display:none;"></div>
+                    <div id="rentalIssuesBanner" class="entity-issues-banner" style="display:none;"></div>
+
+                    <h3 class="section-title-form">Позиции аренды</h3>
+                    <div class="items-toolbar">
+                        <div>
+                            <label for="itemCategoryFilter">Категория:</label>
+                            <select id="itemCategoryFilter">
+                                <option value="">Все категории</option>
+                                <option value="Мебель">Мебель</option>
+                                <option value="Экспонат">Экспонат</option>
+                                <option value="Инструмент">Инструмент</option>
+                                <option value="Склад">Склад</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="itemSearchInput">Поиск:</label>
+                            <input type="text" id="itemSearchInput" placeholder="Название объекта..." oninput="filterItems()">
+                        </div>
+                    </div>
+
+                    <div class="items-table-wrapper">
+                        <table id="rentalItemsTable" class="items-manager-table">
+                            <thead>
+                                <tr>
+                                    <th>Доступный объект</th>
+                                    <th>Категория</th>
+                                    <th>Остаток</th>
+                                    <th>Количество</th>
+                                    <th>Цена аренды</th>
+                                    <th>Состояние ДО</th>
+                                    <th>Состояние ПОСЛЕ</th>
+                                    <th>Кол-во к списанию</th>
+                                    <th>Причина / комментарий</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="rentalItemsBody">
+                                <!-- Позиции будут добавлены динамически -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="rentalRelatedDocumentsSection" class="related-documents-section" style="display:block;">
+                        <h3 class="section-title-form">Связанные документы</h3>
+                        <div id="rentalRelatedDocumentsList" class="related-documents-list">Нет связанных документов. Для создания документа используйте кнопку "Провести".</div>
+                    </div>
+                    <div id="rentalLinkedPurchaseRequestsSection" class="related-documents-section" style="display:block;">
+                        <h3 class="section-title-form">Связанные заявки на закупку</h3>
+                        <div id="rentalLinkedPurchaseRequestsList" class="related-documents-list">Связанные заявки отсутствуют.</div>
+                    </div>
+
+                    <button type="button" id="rentalAddItemBtn" onclick="addRentalItem()" class="add-row-button">Добавить позицию</button>
+
+                    <div class="form-actions">
+                        <button type="button" id="rentalEditModeBtn" style="display:none;" onclick="enableRentalEditMode()">Изменить</button>
+                        <span id="rentalDraftIndicator" class="draft-indicator">Все изменения сохранены</span>
+                        <button type="submit" id="rentalSaveBtn" data-submit-mode="draft">Сохранить</button>
+                        <button type="submit" id="rentalPostBtn" data-submit-mode="post">Провести</button>
+                        <button type="button" id="rentalUnpostBtn" style="display:none;" onclick="unpostCurrentRental()">Отменить проведение</button>
+                        <button type="button" id="rentalCloseBtn" onclick="closeRentalModal()">Отмена</button>
+                    </div>
+                    <div id="rentalPostWarning" class="post-warning-message" style="display:none;"></div>
+                    <div class="form-actions-hint">Сохранить — черновик без документов и изменения остатков. Провести — создание документов и проведение по складу.</div>
+                </form>
+            </div>
+        </div>
+
+        <!-- Модальное окно для добавления/редактирования мероприятия -->
+        <div id="eventModal" class="modal" style="display:none;">
+            <div class="modal-content form-modal-wide">
+                <span class="close" onclick="closeEventModal()">&times;</span>
+                <h2 id="eventModalTitle">Добавить мероприятие</h2>
+                <form id="eventForm" class="entity-form">
+                    <div id="eventFormLoading" class="form-loading-state" style="display:none;">Загрузка данных мероприятия...</div>
+                    <div>
+                        <label for="eventName">Название:</label>
+                        <input type="text" id="eventName" required>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div>
+                            <label for="eventStartDate">Дата и время начала:</label>
+                            <input type="datetime-local" id="eventStartDate" step="60" required>
+                        </div>
+                        <div>
+                            <label for="eventEndDate">Дата и время окончания:</label>
+                            <input type="datetime-local" id="eventEndDate" step="60" required>
+                        </div>
+                    </div>
+
+                    <div class="form-grid-2">
+                        <div>
+                            <label for="eventLocation">Место проведения:</label>
+                            <input type="text" id="eventLocation">
+                        </div>
+                        <div>
+                            <label for="eventEmployee">Ответственный:</label>
+                            <select id="eventEmployee" required>
+                                <option value="">Выберите сотрудника</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <div class="status-row">
+                        <div>
+                            <label for="eventStatus">Статус мероприятия:</label>
+                            <select id="eventStatus" onchange="toggleEventConditionFields()">
+                                <option value="Черновик">Черновик</option>
+                                <option value="Проведен">Проведен</option>
+                                <option value="Активно">Активно</option>
+                                <option value="Завершено">Завершено</option>
+                                <option value="Просрочена">Просрочена</option>
+                            </select>
+                        </div>
+                        <div id="eventConditionHint" class="status-hint">
+                            Состояние ОС заполняется в акте приемки при завершении мероприятия. Расходники списываются автоматически при выдаче.
+                        </div>
+                    </div>
+                    <div id="eventProgressLine" class="entity-progress-line"></div>
+
+                    <div id="eventStatusInfoBlock" class="record-status-info" style="display:none;"></div>
+                    <div id="eventIssuesBanner" class="entity-issues-banner" style="display:none;"></div>
+
+                    <h3 class="section-title-form">Объекты на мероприятии</h3>
+                    <div class="items-toolbar">
+                        <div>
+                            <label for="eventItemCategoryFilter">Категория:</label>
+                            <select id="eventItemCategoryFilter">
+                                <option value="">Все категории</option>
+                                <option value="Мебель">Мебель</option>
+                                <option value="Экспонат">Экспонат</option>
+                                <option value="Инструмент">Инструмент</option>
+                                <option value="Склад">Склад</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label for="eventItemSearchInput">Поиск:</label>
+                            <input type="text" id="eventItemSearchInput" placeholder="Название объекта..." oninput="filterEventItems()">
+                        </div>
+                    </div>
+
+                    <div class="items-table-wrapper">
+                        <table id="eventItemsTable" class="items-manager-table">
+                            <thead>
+                                <tr>
+                                    <th>Доступный объект</th>
+                                    <th>Категория</th>
+                                    <th>Остаток</th>
+                                    <th>Количество</th>
+                                    <th>Дата передачи</th>
+                                    <th>Дата возврата</th>
+                                    <th>Состояние ДО</th>
+                                    <th>Состояние ПОСЛЕ</th>
+                                    <th>Кол-во к списанию</th>
+                                    <th>Причина / комментарий</th>
+                                    <th>Статус</th>
+                                    <th>Действия</th>
+                                </tr>
+                            </thead>
+                            <tbody id="eventItemsBody">
+                                <!-- Позиции будут добавлены динамически -->
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <div id="eventRelatedDocumentsSection" class="related-documents-section" style="display:block;">
+                        <h3 class="section-title-form">Связанные документы</h3>
+                        <div id="eventRelatedDocumentsList" class="related-documents-list">Нет связанных документов. Для создания документа используйте кнопку "Провести".</div>
+                    </div>
+                    <div id="eventLinkedPurchaseRequestsSection" class="related-documents-section" style="display:block;">
+                        <h3 class="section-title-form">Связанные заявки на закупку</h3>
+                        <div id="eventLinkedPurchaseRequestsList" class="related-documents-list">Связанные заявки отсутствуют.</div>
+                    </div>
+
+                    <div id="eventWriteoffActsSection" class="event-writeoff-acts-section" style="display:none;">
+                        <h3 class="section-title-form">Акты списания по мероприятию</h3>
+                        <div id="eventWriteoffActsList" class="event-writeoff-acts-list">Нет связанных актов списания.</div>
+                    </div>
+
+                    <button type="button" id="eventAddItemBtn" onclick="addEventItem()" class="add-row-button">Добавить объект</button>
+
+                    <div class="form-actions">
+                        <button type="button" id="eventEditModeBtn" style="display:none;" onclick="enableEventEditMode()">Изменить</button>
+                        <span id="eventDraftIndicator" class="draft-indicator">Все изменения сохранены</span>
+                        <button type="submit" id="eventSaveBtn" data-submit-mode="draft">Сохранить</button>
+                        <button type="submit" id="eventPostBtn" data-submit-mode="post">Провести</button>
+                        <button type="button" id="eventUnpostBtn" style="display:none;" onclick="unpostCurrentEvent()">Отменить проведение</button>
+                        <button type="button" id="eventCloseBtn" onclick="closeEventModal()">Отмена</button>
+                    </div>
+                    <div id="eventPostWarning" class="post-warning-message" style="display:none;"></div>
+                    <div class="form-actions-hint">Сохранить — черновик без документов и изменения остатков. Провести — создание документов и проведение по складу.</div>
+                </form>
+            </div>
+        </div>
+
+        <div id="noteEditorModal" class="modal" style="display:none;">
+            <div class="modal-content note-editor-modal">
+                <span class="close" onclick="closeNoteEditor()">&times;</span>
+                <h2>Примечание к объекту</h2>
+                <label for="noteEditorText">Комментарий / замечания</label>
+                <textarea id="noteEditorText" rows="8" placeholder="Введите примечание, комментарий по состоянию или замечания по возврату..."></textarea>
+                <div class="form-actions">
+                    <button type="button" class="note-save-button" onclick="saveNoteEditor()">Сохранить примечание</button>
+                    <button type="button" onclick="closeNoteEditor()">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для добавления/редактирования клиента -->
+        <div id="clientModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeClientModal()">&times;</span>
+                <h2 id="clientModalTitle">Добавить клиента</h2>
+                <form id="clientForm">
+                    <label for="clientName">Название / ФИО:</label>
+                    <input type="text" id="clientName" required>
+
+                    <label for="clientPhone">Телефон:</label>
+                    <input type="text" id="clientPhone" required>
+
+                    <label for="clientEmail">Email:</label>
+                    <input type="email" id="clientEmail" required>
+
+                    <label for="clientAddress">Адрес:</label>
+                    <input type="text" id="clientAddress">
+
+                    <label for="clientInn">ИНН:</label>
+                    <input type="text" id="clientInn">
+
+                    <label for="clientType">Тип:</label>
+                    <select id="clientType" required>
+                        <option value="">Выберите тип</option>
+                        <option value="Физлицо">Физлицо</option>
+                        <option value="Юрлицо">Юрлицо</option>
+                    </select>
+
+                    <button type="submit">Сохранить</button>
+                    <button type="button" onclick="closeClientModal()">Отмена</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Модальное окно для добавления/редактирования сотрудника -->
+        <div id="employeeModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeEmployeeModal()">&times;</span>
+                <h2 id="employeeModalTitle">Добавить сотрудника</h2>
+                <form id="employeeForm">
+                    <label for="employeeName">ФИО:</label>
+                    <input type="text" id="employeeName" required>
+
+                    <label for="employeePosition">Должность:</label>
+                    <input type="text" id="employeePosition" required>
+
+                    <label for="employeePhone">Телефон:</label>
+                    <input type="text" id="employeePhone" required>
+
+                    <label for="employeeEmail">Email:</label>
+                    <input type="email" id="employeeEmail" required>
+
+                    <label for="employeeHireDate">Дата приема:</label>
+                    <input type="date" id="employeeHireDate" required>
+
+                    <label for="employeeActive">Активен:</label>
+                    <input type="checkbox" id="employeeActive" checked>
+
+                    <button type="submit">Сохранить</button>
+                    <button type="button" onclick="closeEmployeeModal()">Отмена</button>
+                </form>
+            </div>
+        </div>
+
+        <!-- Модальное окно для скачивания документов -->
+        <div id="documentsModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeDocumentsModal()">&times;</span>
+                <h2>Сформировать документы аренды</h2>
+                <div id="documentsContent" style="margin: 20px 0;">
+                    <p><strong>Выбранная аренда:</strong></p>
+                    <p id="documentsRentalInfo" class="modal-info-box"></p>
+                    
+                    <p><strong>Документы для скачивания:</strong></p>
+                    <div style="margin: 15px 0;">
+                        <label>
+                            <input type="checkbox" id="docTransfer" checked> 
+                            <span>Акт передачи инвентаря</span>
+                        </label>
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <label>
+                            <input type="checkbox" id="docAcceptance" checked> 
+                            <span>Акт приемки инвентаря</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-buttons" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="generateSelectedDocuments()" class="confirm-yes">Сформировать выбранные</button>
+                    <button type="button" onclick="closeDocumentsModal()" class="confirm-no">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для скачивания документов мероприятий -->
+        <div id="eventDocumentsModal" class="modal" style="display:none;">
+            <div class="modal-content">
+                <span class="close" onclick="closeEventDocumentsModal()">&times;</span>
+                <h2>Сформировать документы мероприятия</h2>
+                <div id="eventDocumentsContent" style="margin: 20px 0;">
+                    <p><strong>Выбранное мероприятие:</strong></p>
+                    <p id="eventDocumentsEventInfo" class="modal-info-box"></p>
+                    
+                    <p><strong>Документы для скачивания:</strong></p>
+                    <div style="margin: 15px 0;">
+                        <label>
+                            <input type="checkbox" id="eventDocIssuance" checked> 
+                            <span>Акт выдачи инвентаря</span>
+                        </label>
+                    </div>
+                    <div style="margin: 15px 0;">
+                        <label>
+                            <input type="checkbox" id="eventDocAcceptance" checked> 
+                            <span>Акт приемки инвентаря</span>
+                        </label>
+                    </div>
+                </div>
+                <div class="modal-buttons" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="generateSelectedEventDocuments()" class="confirm-yes">Сформировать выбранные</button>
+                    <button type="button" onclick="closeEventDocumentsModal()" class="confirm-no">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для отчетов аренды -->
+        <div id="rentalsReportModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closeRentalsReportModal()">&times;</span>
+                <h2>Отчеты по арендам</h2>
+                <div class="report-toolbar">
+                    <div>
+                        <label for="rentalsReportType">Тип отчета:</label>
+                        <select id="rentalsReportType" onchange="handleRentalsReportTypeChange()">
+                            <option value="monthly">Аренды по месяцам</option>
+                            <option value="status">Аренды по статусам</option>
+                            <option value="items">Топ объектов по аренде</option>
+                            <option value="clients">Популярные арендаторы</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="rentalsChartType">Тип диаграммы:</label>
+                        <select id="rentalsChartType" onchange="updateRentalsChart()">
+                            <option value="bar">Столбчатая</option>
+                            <option value="horizontalBar">Горизонтальная</option>
+                            <option value="line">Линейная</option>
+                            <option value="pie">Круговая</option>
+                            <option value="doughnut">Кольцевая</option>
+                        </select>
+                    </div>
+                    <div id="rentalsTopLimitGroup">
+                        <label for="rentalsTopLimit">Показать:</label>
+                        <select id="rentalsTopLimit" onchange="handleTopReportPreferenceChange('rentals')">
+                            <option value="5">5</option>
+                            <option value="10">10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="all">Все</option>
+                        </select>
+                    </div>
+                    <div id="rentalsTopSortGroup">
+                        <label for="rentalsTopSortOrder">Сортировка:</label>
+                        <select id="rentalsTopSortOrder" onchange="handleTopReportPreferenceChange('rentals')">
+                            <option value="desc">По убыванию</option>
+                            <option value="asc">По возрастанию</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="rentalsReportPeriod">Период:</label>
+                        <select id="rentalsReportPeriod" onchange="toggleRentalsCustomDateFilters(); updateRentalsChart();">
+                            <option value="all">За всё время</option>
+                            <option value="month">За месяц</option>
+                            <option value="quarter">За квартал</option>
+                            <option value="year">За год</option>
+                            <option value="custom">Свой диапазон</option>
+                        </select>
+                    </div>
+                    <label class="checkbox-row" for="rentalsIncludeDrafts">
+                        <input type="checkbox" id="rentalsIncludeDrafts" onchange="updateRentalsChart()">
+                        <span>Учитывать черновики</span>
+                    </label>
+                    <div>
+                        <label for="rentalsReportYear">Год:</label>
+                        <select id="rentalsReportYear" onchange="updateRentalsChart()">
+                            <option value="">Все</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="rentalsReportGrouping">Группировка:</label>
+                        <select id="rentalsReportGrouping" onchange="updateRentalsChart()">
+                            <option value="month">По месяцам</option>
+                            <option value="quarter">По кварталам</option>
+                        </select>
+                    </div>
+                    <div id="rentalsCustomDateRange" class="report-date-range" style="display:none;">
+                        <input type="datetime-local" id="rentalsReportDateFrom" onchange="updateRentalsChart()">
+                        <input type="datetime-local" id="rentalsReportDateTo" onchange="updateRentalsChart()">
+                    </div>
+                </div>
+
+                <div class="report-actions-row">
+                    <button type="button" onclick="updateRentalsChart()">Обновить</button>
+                    <button type="button" onclick="exportRentalsReportToPDF()">Экспорт в PDF</button>
+                    <button type="button" onclick="exportRentalsReportToCSV()">Экспорт в CSV</button>
+                    <button type="button" onclick="downloadRentalsChartImage()">Скачать PNG</button>
+                </div>
+
+                <div class="report-layout">
+                    <div class="report-chart-panel">
+                        <canvas id="rentalsChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="report-side-panel">
+                        <h3>Сводка</h3>
+                        <div id="rentalsReportSummary" class="report-summary-list"></div>
+                    </div>
+                </div>
+
+                <div class="report-table-wrapper">
+                    <table id="rentalsReportTable" class="report-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="modal-buttons" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="closeRentalsReportModal()" class="confirm-no">Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <!-- Модальное окно для отчетов мероприятий -->
+        <div id="eventsReportModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closeEventsReportModal()">&times;</span>
+                <h2>Отчеты по мероприятиям</h2>
+                <div class="report-toolbar">
+                    <div>
+                        <label for="eventsReportType">Тип отчета:</label>
+                        <select id="eventsReportType" onchange="handleEventsReportTypeChange()">
+                            <option value="monthly">Мероприятия по месяцам</option>
+                            <option value="venues">Мероприятия по местам</option>
+                            <option value="items">Топ объектов по мероприятиям</option>
+                            <option value="status">Статусы мероприятий</option>
+                            <option value="duration">Длительность мероприятий</option>
+                            <option value="responsibles">Загруженность ответственных</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventsChartType">Тип диаграммы:</label>
+                        <select id="eventsChartType" onchange="updateEventsChart()">
+                            <option value="bar">Столбчатая</option>
+                            <option value="horizontalBar">Горизонтальная</option>
+                            <option value="line">Линейная</option>
+                            <option value="pie">Круговая</option>
+                            <option value="doughnut">Кольцевая</option>
+                        </select>
+                    </div>
+                    <div id="eventsTopLimitGroup">
+                        <label for="eventsTopLimit">Показать:</label>
+                        <select id="eventsTopLimit" onchange="handleTopReportPreferenceChange('events')">
+                            <option value="5">5</option>
+                            <option value="10" selected>10</option>
+                            <option value="20">20</option>
+                            <option value="50">50</option>
+                            <option value="all">Все</option>
+                        </select>
+                    </div>
+                    <div id="eventsTopSortGroup">
+                        <label for="eventsTopSortOrder">Сортировка:</label>
+                        <select id="eventsTopSortOrder" onchange="handleTopReportPreferenceChange('events')">
+                            <option value="desc">По убыванию</option>
+                            <option value="asc">По возрастанию</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventsReportPeriod">Период:</label>
+                        <select id="eventsReportPeriod" onchange="toggleEventsCustomDateFilters(); updateEventsChart();">
+                            <option value="all">За всё время</option>
+                            <option value="month">За месяц</option>
+                            <option value="quarter">За квартал</option>
+                            <option value="year">За год</option>
+                            <option value="custom">Свой диапазон</option>
+                        </select>
+                    </div>
+                    <label class="checkbox-row" for="eventsIncludeDrafts">
+                        <input type="checkbox" id="eventsIncludeDrafts" onchange="updateEventsChart()">
+                        <span>Учитывать черновики</span>
+                    </label>
+                    <div>
+                        <label for="eventsReportYear">Год:</label>
+                        <select id="eventsReportYear" onchange="updateEventsChart()">
+                            <option value="">Все</option>
+                            <option value="2025">2025</option>
+                            <option value="2026">2026</option>
+                            <option value="2027">2027</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventsReportGrouping">Группировка:</label>
+                        <select id="eventsReportGrouping" onchange="updateEventsChart()">
+                            <option value="month">По месяцам</option>
+                            <option value="quarter">По кварталам</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label for="eventsReportCategory">Категория:</label>
+                        <select id="eventsReportCategory" onchange="updateEventsChart()">
+                            <option value="">Все</option>
+                            <option value="Мебель">Мебель</option>
+                            <option value="Экспонат">Экспонат</option>
+                            <option value="Инструмент">Инструмент</option>
+                            <option value="Склад">Склад</option>
+                        </select>
+                    </div>
+                    <div id="eventsCustomDateRange" class="report-date-range" style="display:none;">
+                        <input type="datetime-local" id="eventsReportDateFrom" onchange="updateEventsChart()">
+                        <input type="datetime-local" id="eventsReportDateTo" onchange="updateEventsChart()">
+                    </div>
+                </div>
+
+                <div class="report-actions-row">
+                    <button type="button" onclick="updateEventsChart()">Обновить</button>
+                    <button type="button" onclick="exportEventsReportToPDF()">Экспорт в PDF</button>
+                    <button type="button" onclick="exportEventsReportToCSV()">Экспорт в CSV</button>
+                    <button type="button" onclick="downloadEventsChartImage()">Скачать PNG</button>
+                </div>
+
+                <div class="report-layout">
+                    <div class="report-chart-panel">
+                        <canvas id="eventsChart" width="400" height="200"></canvas>
+                    </div>
+                    <div class="report-side-panel">
+                        <h3>Сводка</h3>
+                        <div id="eventsReportSummary" class="report-summary-list"></div>
+                    </div>
+                </div>
+
+                <div class="report-table-wrapper">
+                    <table id="eventsReportTable" class="report-table">
+                        <thead></thead>
+                        <tbody></tbody>
+                    </table>
+                </div>
+
+                <div class="modal-buttons" style="display: flex; gap: 10px; justify-content: flex-end;">
+                    <button type="button" onclick="closeEventsReportModal()" class="confirm-no">Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="writeoffActDetailsModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide writeoff-act-modal-content">
+                <span class="close" onclick="closeWriteoffActDetailsModal()">&times;</span>
+                <h2 id="writeoffActDetailsTitle">Акт списания</h2>
+                <div id="writeoffActDetailsContent"></div>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" id="writeoffActPostBtn" class="confirm-yes" onclick="postWriteoffAct()" style="display:none;">Провести акт</button>
+                    <button type="button" id="writeoffActEditBtn" onclick="enableWriteoffActEditing()" style="display:none;">Редактировать</button>
+                    <button type="button" id="writeoffActSaveBtn" class="confirm-yes" onclick="saveWriteoffActChanges()" style="display:none;">Сохранить</button>
+                    <button type="button" id="writeoffActEditCancelBtn" onclick="cancelWriteoffActEditing()" style="display:none;">Отмена изменений</button>
+                    <button type="button" id="writeoffActUnpostBtn" onclick="unpostWriteoffAct()" style="display:none;">Отменить проведение</button>
+                    <button type="button" class="confirm-yes" data-permission="documents.print" onclick="downloadWriteoffActPdf()">PDF</button>
+                    <button type="button" data-permission="documents.print" onclick="printWriteoffActDetails()">Печать</button>
+                    <button type="button" class="confirm-no" onclick="closeWriteoffActDetailsModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="documentCardModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closeDocumentCardModal()">&times;</span>
+                <h2 id="documentCardTitle">Карточка документа</h2>
+                <div id="documentCardContent"></div>
+                <div id="documentCardInlinePdfPanel" class="document-inline-pdf-panel" style="display:none;">
+                    <div class="document-inline-pdf-toolbar">
+                        <strong>Предпросмотр PDF</strong>
+                        <div class="document-inline-pdf-toolbar-actions">
+                        <button type="button" onclick="downloadInlineDocumentPdfPreview()">Скачать PDF</button>
+                            <button type="button" onclick="printInlineDocumentPdfPreview()">Печать</button>
+                            <button type="button" class="confirm-no" onclick="closeInlineDocumentPdfPreview()">Закрыть предпросмотр</button>
+                        </div>
+                    </div>
+                    <iframe id="documentCardInlinePdfFrame" title="Предпросмотр PDF документа"></iframe>
+                </div>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+                    <button type="button" id="documentCardBasisBtn" onclick="goToSelectedDocumentBasis()" style="display:none;">↗ Перейти к основанию</button>
+                    <button type="button" id="documentCardEditBtn" onclick="enableDocumentCardEditing()">Редактировать</button>
+                    <button type="button" id="documentCardSaveBtn" onclick="saveDocumentCardChanges()" style="display:none;">Сохранить изменения</button>
+                    <button type="button" id="documentCardEditCancelBtn" onclick="cancelDocumentCardEditing()" style="display:none;">Отмена изменений</button>
+                    <button type="button" id="documentCardConductBtn" data-permission="documents.changeStatus" onclick="setDocumentStatus('Проведен')">Провести</button>
+                    <button type="button" id="documentCardCancelBtn" data-permission="documents.changeStatus" onclick="setDocumentStatus('Отменен')">Отменить</button>
+                    <button type="button" id="documentCardPdfBtn" data-permission="documents.print" onclick="openInlineDocumentPdfPreviewFromCard()">PDF</button>
+                    <button type="button" id="documentCardPrintBtn" data-permission="documents.print" onclick="printDocumentFromCard()">Печать</button>
+                    <button type="button" class="confirm-no" onclick="closeDocumentCardModal()">Закрыть</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="purchaseRequestModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closePurchaseRequestModal()">&times;</span>
+                <h2 id="purchaseRequestModalTitle">Заявка на закупку</h2>
+                <div id="purchaseRequestModalContent"></div>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;flex-wrap:wrap;">
+                    <button type="button" id="purchaseRequestSaveBtn" onclick="savePurchaseRequestChanges()" style="display:none;">Сохранить</button>
+                    <button type="button" id="purchaseRequestEditCancelBtn" onclick="cancelPurchaseRequestEditing()" style="display:none;">Отмена изменений</button>
+                    <button type="button" id="purchaseRequestSubmitBtn" data-permission="purchaseRequests.approve" onclick="submitPurchaseRequestForApproval()" style="display:none;">Отправить на согласование</button>
+                    <button type="button" id="purchaseRequestApproveBtn" data-permission="purchaseRequests.approve" onclick="approvePurchaseRequestByManager()" style="display:none;">Согласовать</button>
+                    <button type="button" id="purchaseRequestApprovePartialBtn" data-permission="purchaseRequests.approve" onclick="approvePurchaseRequestPartially()" style="display:none;">Согласовать частично</button>
+                    <button type="button" id="purchaseRequestRejectBtn" data-permission="purchaseRequests.approve" onclick="rejectPurchaseRequest()" class="confirm-no" style="display:none;">Отклонить</button>
+                    <button type="button" id="purchaseRequestBackToDraftBtn" onclick="returnPurchaseRequestToDraft()" style="display:none;">Вернуть в черновик</button>
+                    <button type="button" id="purchaseRequestOrderBtn" data-permission="purchaseRequests.order" onclick="orderPurchaseRequest()">Заказать</button>
+                    <button type="button" id="purchaseRequestDeliveryBtn" data-permission="purchaseRequests.delivery" onclick="openDeliveryForSelectedPurchaseRequest()">Отметить поставку</button>
+                    <button type="button" id="purchaseRequestCancelOrderBtn" data-permission="purchaseRequests.order" onclick="cancelPurchaseOrder()" class="confirm-no" style="display:none;">Отменить заказ</button>
+                    <button type="button" id="purchaseRequestEditBtn" onclick="enablePurchaseRequestEditing()">Редактировать</button>
+                    <button type="button" id="purchaseRequestCloseBtn" onclick="closePurchaseRequest()" style="display:none;">Закрыть</button>
+                    <button type="button" id="purchaseRequestOpenActBtn" onclick="openLinkedPurchaseActFromRequest()" style="display:none;">Открыть акт закупки</button>
+                    <button type="button" id="purchaseRequestCopyBtn" onclick="copyRejectedPurchaseRequest()" style="display:none;">Создать копию</button>
+                    <button type="button" id="purchaseRequestDeleteBtn" onclick="deletePurchaseRequest()" class="confirm-no" style="display:none;">Удалить заявку</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="purchaseDeliveryModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closePurchaseDeliveryModal()">&times;</span>
+                <h2 id="purchaseDeliveryModalTitle">Отметить поставку</h2>
+                <div id="purchaseDeliveryModalContent"></div>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" class="confirm-yes" onclick="confirmPurchaseDelivery()">Подтвердить поставку</button>
+                    <button type="button" class="confirm-no" onclick="closePurchaseDeliveryModal()">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="purchaseCancelModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closePurchaseCancelModal()">&times;</span>
+                <h2>Отмена заказа</h2>
+                <div id="purchaseCancelModalContent"></div>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" class="confirm-no" onclick="confirmPurchaseCancellation()">Подтвердить отмену</button>
+                    <button type="button" onclick="closePurchaseCancelModal()">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+        <div id="purchaseApprovalSelectionModal" class="modal" style="display:none;">
+            <div class="modal-content report-modal-wide">
+                <span class="close" onclick="closePurchaseApprovalSelectionModal()">&times;</span>
+                <h2>Согласовать выборочно</h2>
+                <div id="purchaseApprovalSelectionModalContent"></div>
+                <div class="modal-buttons" style="display:flex;gap:10px;justify-content:flex-end;">
+                    <button type="button" class="confirm-yes" onclick="confirmPurchaseApprovalSelection()">Применить</button>
+                    <button type="button" onclick="closePurchaseApprovalSelectionModal()">Отмена</button>
+                </div>
+            </div>
+        </div>
+
+    </div>
+    <div id="notificationsPanel" class="notifications-panel" style="display:none;">
+        <div class="notifications-panel-header">
+            <strong>Уведомления</strong>
+            <div class="notifications-panel-actions">
+                <button type="button" class="inline-action-btn" onclick="markAllNotificationsRead()">Прочитано</button>
+                <button type="button" class="inline-action-btn" onclick="clearReadNotifications()">Очистить прочитанные</button>
+            </div>
+        </div>
+        <div class="notifications-panel-filters">
+            <button type="button" class="notif-filter-btn active" data-notif-filter="all" data-base-label="Все" onclick="setNotificationsFilter('all')">Все</button>
+            <button type="button" class="notif-filter-btn" data-notif-filter="inventory" data-base-label="Склад" onclick="setNotificationsFilter('inventory')">Склад</button>
+            <button type="button" class="notif-filter-btn" data-notif-filter="rentals-events" data-base-label="Аренда/Мероприятия" onclick="setNotificationsFilter('rentals-events')">Аренда/Мероприятия</button>
+            <button type="button" class="notif-filter-btn" data-notif-filter="users" data-base-label="Пользователи" onclick="setNotificationsFilter('users')">Пользователи</button>
+            <button type="button" class="notif-filter-btn" data-notif-filter="procurement" data-base-label="Закупки" onclick="setNotificationsFilter('procurement')">Закупки</button>
+            <button type="button" class="notif-filter-btn" data-notif-filter="system" data-base-label="Система" onclick="setNotificationsFilter('system')">Система</button>
+        </div>
+        <div id="notificationsPanelBody" class="notifications-panel-body">
+            <div class="empty-table-message">Пока нет новых уведомлений.</div>
+        </div>
+    </div>
+
+    <!-- Локальное подключение библиотек для работы с PDF -->
+    <script src="/node_modules/jspdf/dist/jspdf.umd.min.js"></script>
+    <script src="/node_modules/html2canvas/dist/html2canvas.min.js"></script>
+    
+    <!-- SheetJS для экспорта в Excel на клиенте (с резервным источником) -->
+    <script src="https://unpkg.com/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+    
+    <!-- Подключение Chart.js для отчетов -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+    <script src="documents-generator.js"></script>
+    <!-- RBAC система управления правами доступа -->
+    <script src="rbac.js"></script>
+
+    <script src="script-utils-core.js?v=20260426-01"></script>
+    <script src="modules/formatters.js?v=20260429-01"></script>
+    <script src="modules/statuses.js?v=20260429-01"></script>
+    <script src="modules/purchase-requests-api.js?v=20260429-01"></script>
+    <script src="modules/dashboard.js?v=20260429-01"></script>
+    <script src="script.js?v=20260426-01"></script>
+    <script src="warehouse-advanced.js?v=20260426-01"></script>
+</body>
+</html>
