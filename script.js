@@ -1394,11 +1394,24 @@ async function handleLoginSubmit(event) {
     }
 
     try {
-        const response = await fetchWithTimeout(buildApiUrl('/api/users/login'), {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ username, password })
-        }, API_FAST_TIMEOUT_MS);
+        let response;
+        try {
+            response = await fetchWithTimeout(buildApiUrl('/api/users/login'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            }, Math.max(API_FAST_TIMEOUT_MS, 25000));
+        } catch (firstError) {
+            const message = String(firstError?.message || '').toLowerCase();
+            const isTimeout = message.includes('превышено время ожидания') || message.includes('timeout');
+            if (!isTimeout) throw firstError;
+            // Render free tier may need extra time on first wake-up request.
+            response = await fetchWithTimeout(buildApiUrl('/api/users/login'), {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username, password })
+            }, 35000);
+        }
 
         const data = await response.json();
         if (!response.ok || !data.token) {
